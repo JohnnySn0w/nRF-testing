@@ -1,13 +1,20 @@
 &i2c1 {
-    status="okay";
-    compatible = "nordic,nrf-twim";
-	label = "I2C_1";
-	// clock-frequency = <100000>;
-    // vcnl40401: vcnl4040@60 {
-    //     status = "okay";
-	// 	compatible = "vishay,vcnl4040";//vishay?
-	// 	reg = <0x60>;
-	// 	// als-it = <640>;
+		status="okay";
+		compatible = "nordic,nrf-twim";
+		label = "I2C_1";
+		// clock-frequency = <100000>;
+		// vcnl40401: vcnl4040@60 {
+		//     status = "okay";
+		// 	compatible = "vishay,vcnl4040";//vishay?
+		// 	reg = <0x60>;
+		// };
 	// };
-};
+	// interrupt {
+	// 	compatible = "nordic,nrf-gpio";
+	// 	int_pin: NRF_PIN_POS {
+	// 		compatible = "nordic,nrf-gpio";
+	// 		gpios=<&arduino_header connector-0 connector-1>
+	// 	};
+	// };
 
+};
