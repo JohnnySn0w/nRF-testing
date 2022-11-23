@@ -157,24 +157,26 @@ bool setupGPIO(const struct device* gp_cont){
 
 void calibrate(uint8_t* buf, calVals* calibVals)
 {
-	// uint16_t reading = ((uint16_t)(buf[1])<<8) + (uint16_t)(buf[0]);
-	// if(freshCalib == 1)
-	// {
-	// 	calibVals->ambH = reading+1;
-	// 	calibVals->ambL = reading-1;
-	// 	freshCalib = 0;
-	// 	return;
-	// }
-	// if(reading > calibVals->ambH)
-	// {
-	// 	calibVals->ambH = reading;
-	// 	printk("updated ambH to %x\n", calibVals->ambH);
-	// }
-	// if(reading < calibVals->ambL && reading > 0)
-	// {
-	// 	calibVals->ambH = reading;
-	// 	printk("updated ambL to %x\n", calibVals->ambL);
-	// }
+	uint16_t reading = ((uint16_t)(buf[1])<<8) + (uint16_t)(buf[0]);
+	if(freshCalib == 1)
+	{
+		calibVals->ambH = reading+1;
+		calibVals->ambL = reading-1;
+		freshCalib = 0;
+		printk("updated ambH to %u\n", calibVals->ambH);
+		printk("updated ambL to %u\n", calibVals->ambL);
+		return;
+	}
+	if(reading > calibVals->ambH)
+	{
+		calibVals->ambH = reading;
+		printk("updated ambH to %u\n", calibVals->ambH);
+	}
+	if(reading < calibVals->ambL)
+	{
+		calibVals->ambL = reading;
+		printk("updated ambL to %u\n", calibVals->ambL);
+	}
 }
 
 void pollALS(const struct device* dev, uint8_t* i2c_buffer)
@@ -202,7 +204,7 @@ void main(void)
 	const struct device *gp_cont = DEVICE_DT_GET(DT_NODELABEL(gpio0));
 	// const struct device *interrupt_pin = DT_CHILD(gp_cont, DT_NODELABEL());
 	uint8_t i2c_buffer[3];
-	
+
 	if(!sensorSetup(dev, i2c_buffer)) 
 	{
 		printk("Sensor setup failed!\n");
