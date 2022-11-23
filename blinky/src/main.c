@@ -28,7 +28,24 @@
 // #define I2C_NODE				DT_NODELABEL(vcnl40401)
 // #define GPIO_NODE				DT_NODELABEL(gpio1)
 
-bool readINT(const struct device* dev, uint8_t* i2c_buffer);
+typedef struct bufMsg{
+	int regAddr; 
+	int LByte;
+	int HByte;
+} bufMsg;
+
+typedef struct calVals{
+	uint16_t ambH;
+	uint16_t ambL;
+} calVals;
+
+bool vcnlWrite(const struct device* dev, uint8_t* buf, bufMsg* msg);
+bool vcnlRead(const struct device* dev, uint8_t* i2c_buffer, uint8_t reg);
+void int_triggered(const struct device* dev, struct gpio_callback* callb, uint32_t pin);
+bool sensorSetup(const struct device* dev, uint8_t* i2c_buffer);
+// bool setupGPIO(const struct device* gp_cont, struct gpio_callback* interrupt_callback_data);
+void calibrate(uint8_t* buf, calVals* calibVals);
+void pollALS(const struct device* dev, uint8_t* i2c_buffer);
 
 // struct intFlags {
 // 	0b10000000: Reserved,
@@ -41,27 +58,23 @@ bool readINT(const struct device* dev, uint8_t* i2c_buffer);
 // 	0b1: PS_IF_AWAY //PS drops below PS_THDL INT trigger event
 // };
 
-typedef struct bufMsg{
-	int regAddr; 
-	int LByte;
-	int HByte;
-} bufMsg;
-
+//global flag
 int INTflag = 0;
+int freshCalib = 1;
 
-bool vcnlWrite(const struct device* dev, uint8_t* buf[3], bufMsg* msg){
-	buf[0] = msg->regAddr;
-	buf[1] = msg->LByte;
-	buf[2] = msg->HByte;
-	int error = i2c_write(dev, buf, 3, VCNL4040_I2C_ADDR);
+bool vcnlWrite(const struct device* dev, uint8_t* i2c_buffer, bufMsg* msg){
+	i2c_buffer[0] = msg->regAddr;
+	i2c_buffer[1] = msg->LByte;
+	i2c_buffer[2] = msg->HByte;
+	int error = i2c_write(dev, i2c_buffer, 3, VCNL4040_I2C_ADDR);
 	if(error < 0)
 	{
-		printk("error with write %d, to address: %u!\n", error, msg->regAddr);
+		printk("error with write %d, to address: %X!\n", error, msg->regAddr);
 		return false;
 	} else { return true; }
 }
 
-bool vcnlRead(const struct device* dev, uint8_t* i2c_buffer, int* reg)
+bool vcnlRead(const struct device* dev, uint8_t* i2c_buffer, uint8_t reg)
 {
 	int error; 
 	//set read to als register
@@ -73,8 +86,7 @@ bool vcnlRead(const struct device* dev, uint8_t* i2c_buffer, int* reg)
 		return false;
 	}
 
-	printk("Reading from %X channel: %u\n", reg, (i2c_buffer[1]<<8) + (i2c_buffer[0]));
-	k_msleep(SLEEPTIME);
+	printk("Reading from channel %X: %u\n", reg, (i2c_buffer[1]<<8) + (i2c_buffer[0]));
 	return true;
 }
 
@@ -83,10 +95,16 @@ void int_triggered(const struct device* dev, struct gpio_callback* callb, uint32
 	INTflag=1;
 }
 
-bool setup(const struct device* dev, uint8_t* i2c_buffer) 
+bool sensorSetup(const struct device* dev, uint8_t* i2c_buffer) 
 {
+	if (!device_is_ready(dev)) 
+	{
+		// No such node, or the node does not have status "okay". 
+		printk("\nError: no device found.\n");
+		return false;
+	} 
+	printk("setting up sensor\n");
 	bufMsg msg;
-
 	msg.regAddr = VCNL4040_ALS_CONF_REG; //send to als config command
 	msg.LByte = VCNL4040_ALS_CONF_SET_L; //low byte
 	msg.HByte = VCNL4040_ALS_CONF_SET_H; //high byte unneccessary
@@ -109,39 +127,49 @@ bool setup(const struct device* dev, uint8_t* i2c_buffer)
 	return true;
 }
 
-bool readALS(const struct device* dev, uint8_t* i2c_buffer)
+// bool setupGPIO(const struct device* gp_cont, struct gpio_callback* interrupt_callback_data){
+	
+// }
+
+void calibrate(uint8_t* buf, calVals* calibVals)
 {
-	int error; 
-	//set read to als register
-	i2c_buffer[0]= VCNL4040_ALS_REG;
-	error = i2c_write_read(dev, VCNL4040_I2C_ADDR, i2c_buffer, 1, i2c_buffer, 2);
-
-	if(error < 0)
-	{
-		printk("error with read %d!\n", error);
-		return false;
-	}
-
-	printk("Reading from ALS sensor: %u\n", (i2c_buffer[1]<<8) + (i2c_buffer[0]));
-	return true;
+	// uint16_t reading = ((uint16_t)(buf[1])<<8) + (uint16_t)(buf[0]);
+	// if(freshCalib == 1)
+	// {
+	// 	calibVals->ambH = reading+1;
+	// 	calibVals->ambL = reading-1;
+	// 	freshCalib = 0;
+	// 	return;
+	// }
+	// if(reading > calibVals->ambH)
+	// {
+	// 	calibVals->ambH = reading;
+	// 	printk("updated ambH to %x\n", calibVals->ambH);
+	// }
+	// if(reading < calibVals->ambL && reading > 0)
+	// {
+	// 	calibVals->ambH = reading;
+	// 	printk("updated ambL to %x\n", calibVals->ambL);
+	// }
 }
 
-bool readINT(const struct device* dev, uint8_t* i2c_buffer)
+void pollALS(const struct device* dev, uint8_t* i2c_buffer)
 {
-	int error; 
-	//set read to als register
-	i2c_buffer[0]= VCNL4040_INT_FLAG;
-	// i2c_buffer[1]=VCNL4040_I2C_ADDR;
-	error = i2c_write_read(dev, VCNL4040_I2C_ADDR, i2c_buffer, 1, i2c_buffer, 2);
-
-	if(error < 0)
+	//poll ALS
+	calVals calibValues; //store highest and lowest ambients
+	// calibValues.ambH = 65535;
+	// calibValues.ambL = 0; 
+	while(vcnlRead(dev, i2c_buffer, VCNL4040_ALS_REG))
 	{
-		printk("error with read %d!\n", error);
-		return false;
+		calibrate(i2c_buffer, &calibValues);
+		if(INTflag == 1)
+		{
+			printk("interrupt was triggered\n");
+			vcnlRead(dev, i2c_buffer, VCNL4040_INT_FLAG);
+			INTflag = 0;
+		}
+		k_msleep(SLEEPTIME);
 	}
-
-	printk("Reading from INT FLAG: %u\n", (i2c_buffer[1]<<8) + (i2c_buffer[0]));
-	return true;
 }
 
 void main(void)
@@ -150,56 +178,43 @@ void main(void)
 	const struct device *gp_cont = DEVICE_DT_GET(DT_NODELABEL(gpio0));
 	// const struct device *interrupt_pin = DT_CHILD(gp_cont, DT_NODELABEL());
 	uint8_t i2c_buffer[3];
-	printk("setting up");
-	if (!device_is_ready(dev)) 
+	if(!sensorSetup(dev, i2c_buffer)) 
 	{
-		// No such node, or the node does not have status "okay". 
-		printk("\nError: no device found.\n");
-		return;
-	} else if(!setup(dev, i2c_buffer)) 
-	{
-		printk("setup failed");
+		printk("Sensor setup failed!\n");
 		return;
 	}
-	int ret;
+
+
+	int ret; 
+	printk("setting up gpio\n");
 	if (!device_is_ready(gp_cont))
 	{
-		printk("gpio not ready :(");
+		printk("GPIO not ready.\n");
 		return;
 	} 
 	else
 	{
-		ret = gpio_pin_configure(gp_cont, INT_PIN, GPIO_INPUT|GPIO_ACTIVE_LOW|GPIO_INT_ENABLE|GPIO_PULL_UP);
+		ret = gpio_pin_configure(gp_cont, INT_PIN, INT_PIN_CONFIG);
 		if(ret != 0){ 
 			printk("Error %d: failed to configure pin", ret);
 			return;
 		}
 	}
-	
 	ret = gpio_pin_interrupt_configure(gp_cont, INT_PIN, GPIO_INT_LOW_0);
 	if(ret != 0) 
 	{
 		printk("Error %d: failed to configure interrupt for pin", ret);
 		return;
-	}
-
-	//setup callback
-	static struct gpio_callback interrupt_callback_data; 
+	} 
+	static struct gpio_callback interrupt_callback_data;
 	gpio_init_callback(&interrupt_callback_data, int_triggered, BIT(INT_PIN));
 	gpio_add_callback(gp_cont, &interrupt_callback_data);
+	// return true;
+	// if(!setupGPIO(gp_cont, &interrupt_callback_data))
+	// {
+	// 	printk("GPIO setup failed.");
+	// 	return;
+	// }
 
-	// struct k_timer timer;
-	//poll
-	while(readALS(dev, i2c_buffer))
-	{
-		printk("Another %d\n", INTflag);
-		int pinout = gpio_pin_get_raw(gp_cont, INT_PIN);
-		printk("input is %d\n", (pinout));
-		if(INTflag ==1||pinout ==0)
-		{
-			readINT(dev, i2c_buffer);
-			INTflag = 0;
-		}
-		k_msleep(SLEEPTIME);
-	}
+	pollALS(dev, i2c_buffer);
 }
