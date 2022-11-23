@@ -39,12 +39,12 @@ typedef struct calVals{
 	uint16_t ambL;
 } calVals;
 
-bool vcnlWrite(const struct device* dev, uint8_t* buf, bufMsg* msg);
+bool vcnlWrite(const struct device* dev, uint8_t* i2c_buffer, bufMsg* msg);
 bool vcnlRead(const struct device* dev, uint8_t* i2c_buffer, uint8_t reg);
 void int_triggered(const struct device* dev, struct gpio_callback* callb, uint32_t pin);
 bool sensorSetup(const struct device* dev, uint8_t* i2c_buffer);
 bool setupGPIO(const struct device* gp_cont);
-void calibrate(uint8_t* buf, calVals* calibVals);
+void calibrate(const struct device* dev, uint8_t* buf, calVals* calibVals);
 void pollALS(const struct device* dev, uint8_t* i2c_buffer);
 
 // struct intFlags {
@@ -94,6 +94,15 @@ void int_triggered(const struct device* dev, struct gpio_callback* callb, uint32
 {
 	INTflag=1;
 }
+
+// bool setINTReg(const struct dev, uint8_t* i2c_buffer, )
+// {
+// 	msg.regAddr = VCNL4040_H_THRESH_REG;
+// 	msg.LByte = VCNL4040_H_THRESH_L;
+// 	msg.HByte = VCNL4040_H_THRESH_H;
+// 	if(!vcnlWrite(dev, i2c_buffer, &msg))
+// 	{return false;}
+// }
 
 bool sensorSetup(const struct device* dev, uint8_t* i2c_buffer) 
 {
@@ -155,9 +164,10 @@ bool setupGPIO(const struct device* gp_cont){
 	return true;
 }
 
-void calibrate(uint8_t* buf, calVals* calibVals)
+void calibrate(const struct device* dev, uint8_t* buf, calVals* calibVals)
 {
 	uint16_t reading = ((uint16_t)(buf[1])<<8) + (uint16_t)(buf[0]);
+	bufMsg msg;
 	if(freshCalib == 1)
 	{
 		calibVals->ambH = reading+1;
@@ -171,11 +181,21 @@ void calibrate(uint8_t* buf, calVals* calibVals)
 	{
 		calibVals->ambH = reading;
 		printk("updated ambH to %u\n", calibVals->ambH);
+		msg.regAddr = VCNL4040_H_THRESH_REG;
+		msg.LByte = buf[0];
+		msg.HByte = buf[1];
+		if(!vcnlWrite(dev, buf, &msg))
+		{return;}
 	}
 	if(reading < calibVals->ambL)
 	{
 		calibVals->ambL = reading;
 		printk("updated ambL to %u\n", calibVals->ambL);
+		msg.regAddr = VCNL4040_L_THRESH_REG;
+		msg.LByte = buf[0];
+		msg.HByte = buf[1];
+		if(!vcnlWrite(dev, buf, &msg))
+		{return;}
 	}
 }
 
@@ -183,11 +203,9 @@ void pollALS(const struct device* dev, uint8_t* i2c_buffer)
 {
 	//poll ALS
 	calVals calibValues; //store highest and lowest ambients
-	// calibValues.ambH = 65535;
-	// calibValues.ambL = 0; 
 	while(vcnlRead(dev, i2c_buffer, VCNL4040_ALS_REG))
 	{
-		calibrate(i2c_buffer, &calibValues);
+		calibrate(dev, i2c_buffer, &calibValues);
 		if(INTflag == 1)
 		{
 			printk("interrupt was triggered\n");
