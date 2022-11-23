@@ -133,21 +133,21 @@ bool setupGPIO(const struct device* gp_cont){
 	if (!device_is_ready(gp_cont))
 	{
 		printk("GPIO not ready.\n");
-		return;
+		return false;
 	} 
 	else
 	{
 		ret = gpio_pin_configure(gp_cont, INT_PIN, INT_PIN_CONFIG);
 		if(ret != 0){ 
 			printk("Error %d: failed to configure pin", ret);
-			return;
+			return false;
 		}
 	}
 	ret = gpio_pin_interrupt_configure(gp_cont, INT_PIN, GPIO_INT_LOW_0);
 	if(ret != 0) 
 	{
 		printk("Error %d: failed to configure interrupt for pin", ret);
-		return;
+		return false;
 	} 
 	static struct gpio_callback interrupt_callback_data;
 	gpio_init_callback(&interrupt_callback_data, int_triggered, BIT(INT_PIN));
