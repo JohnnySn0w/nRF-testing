@@ -43,7 +43,7 @@ bool vcnlWrite(const struct device* dev, uint8_t* buf, bufMsg* msg);
 bool vcnlRead(const struct device* dev, uint8_t* i2c_buffer, uint8_t reg);
 void int_triggered(const struct device* dev, struct gpio_callback* callb, uint32_t pin);
 bool sensorSetup(const struct device* dev, uint8_t* i2c_buffer);
-// bool setupGPIO(const struct device* gp_cont, struct gpio_callback* interrupt_callback_data);
+bool setupGPIO(const struct device* gp_cont);
 void calibrate(uint8_t* buf, calVals* calibVals);
 void pollALS(const struct device* dev, uint8_t* i2c_buffer);
 
@@ -127,9 +127,33 @@ bool sensorSetup(const struct device* dev, uint8_t* i2c_buffer)
 	return true;
 }
 
-// bool setupGPIO(const struct device* gp_cont, struct gpio_callback* interrupt_callback_data){
-	
-// }
+bool setupGPIO(const struct device* gp_cont){
+	int ret; 
+	printk("setting up gpio\n");
+	if (!device_is_ready(gp_cont))
+	{
+		printk("GPIO not ready.\n");
+		return;
+	} 
+	else
+	{
+		ret = gpio_pin_configure(gp_cont, INT_PIN, INT_PIN_CONFIG);
+		if(ret != 0){ 
+			printk("Error %d: failed to configure pin", ret);
+			return;
+		}
+	}
+	ret = gpio_pin_interrupt_configure(gp_cont, INT_PIN, GPIO_INT_LOW_0);
+	if(ret != 0) 
+	{
+		printk("Error %d: failed to configure interrupt for pin", ret);
+		return;
+	} 
+	static struct gpio_callback interrupt_callback_data;
+	gpio_init_callback(&interrupt_callback_data, int_triggered, BIT(INT_PIN));
+	gpio_add_callback(gp_cont, &interrupt_callback_data);
+	return true;
+}
 
 void calibrate(uint8_t* buf, calVals* calibVals)
 {
@@ -178,43 +202,18 @@ void main(void)
 	const struct device *gp_cont = DEVICE_DT_GET(DT_NODELABEL(gpio0));
 	// const struct device *interrupt_pin = DT_CHILD(gp_cont, DT_NODELABEL());
 	uint8_t i2c_buffer[3];
+	
 	if(!sensorSetup(dev, i2c_buffer)) 
 	{
 		printk("Sensor setup failed!\n");
 		return;
 	}
 
-
-	int ret; 
-	printk("setting up gpio\n");
-	if (!device_is_ready(gp_cont))
+	if(!setupGPIO(gp_cont))
 	{
-		printk("GPIO not ready.\n");
+		printk("GPIO setup failed.");
 		return;
-	} 
-	else
-	{
-		ret = gpio_pin_configure(gp_cont, INT_PIN, INT_PIN_CONFIG);
-		if(ret != 0){ 
-			printk("Error %d: failed to configure pin", ret);
-			return;
-		}
 	}
-	ret = gpio_pin_interrupt_configure(gp_cont, INT_PIN, GPIO_INT_LOW_0);
-	if(ret != 0) 
-	{
-		printk("Error %d: failed to configure interrupt for pin", ret);
-		return;
-	} 
-	static struct gpio_callback interrupt_callback_data;
-	gpio_init_callback(&interrupt_callback_data, int_triggered, BIT(INT_PIN));
-	gpio_add_callback(gp_cont, &interrupt_callback_data);
-	// return true;
-	// if(!setupGPIO(gp_cont, &interrupt_callback_data))
-	// {
-	// 	printk("GPIO setup failed.");
-	// 	return;
-	// }
 
 	pollALS(dev, i2c_buffer);
 }
