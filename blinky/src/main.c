@@ -101,6 +101,7 @@ void int_triggered(const struct device* dev, struct gpio_callback* callb, uint32
 {
 	INTflag = true;
 	sleepFlag = false;
+	startTimer();
 }
 
 void proxyBLE(const struct device *gpioButton, struct gpio_callback *callback, gpio_port_pins_t pins)
@@ -205,7 +206,7 @@ void calibrate(const struct device* dev, uint8_t* buf, calVals* calibVals)
 	} else {
 		aggre += reading;
 		reads += 1;
-		if (sleepFlag | reads > 20)
+		if (reads > 20)
 		{
 			avg = aggre/reads;
 			aggre = avg;
@@ -238,14 +239,14 @@ void calibrate(const struct device* dev, uint8_t* buf, calVals* calibVals)
 void pollALS(const struct device* dev, uint8_t* i2c_buffer)
 {
 	//poll ALS
-	calVals calibValues; //store highest and lowest ambients
+	static calVals calibValues; //store highest and lowest ambients
 	vcnlRead(dev, i2c_buffer, VCNL4040_ALS_REG);
 		calibrate(dev, i2c_buffer, &calibValues);
-		if(INTflag == 1)
+	if(INTflag == true)
 		{
 			printk("interrupt was triggered\n");
 			vcnlRead(dev, i2c_buffer, VCNL4040_INT_FLAG);
-			INTflag = 0;
+		INTflag = false;
 		printk("looking for bluetooth...\n");
 		k_msleep(1000);
 		}
@@ -284,7 +285,7 @@ void main(void)
 	//create and start minute countdown
 	k_timer_init(&ambientTimer, sleepFuncCb, NULL);
 	startTimer();
-	vcnlRead(dev, i2c_buffer, VCNL4040_INT_FLAG);
+	vcnlRead(dev, i2c_buffer, VCNL4040_INT_FLAG);//primes int pin, otherwise locks in int state
 	while(true)
 	{
 		if(!sleepFlag)
@@ -292,6 +293,6 @@ void main(void)
 	pollALS(dev, i2c_buffer);
 			k_msleep(SLEEPTIME);
 		}
-		k_msleep(1);
+		k_msleep(1); //prevents loop from locking?
 	}
 }
