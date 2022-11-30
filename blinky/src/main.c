@@ -152,25 +152,25 @@ bool setupGPIO(const struct device* gp_cont){
 	{
 		ret = gpio_pin_configure(gp_cont, INT_PIN, INT_PIN_CONFIG);
 		if(ret != 0){ 
-			printk("Error %d: failed to configure INT pin", ret);
+			printk("Error %d: failed to configure INT pin\n", ret);
 			return false;
 		}
 		ret = gpio_pin_configure_dt(&button3_spec, GPIO_INPUT);
 		if(ret != 0){ 
-			printk("Error %d: failed to configure button pin", ret);
+			printk("Error %d: failed to configure button pin\n", ret);
 			return false;
 		}
 	}
 	ret = gpio_pin_interrupt_configure(gp_cont, INT_PIN, GPIO_INT_LOW_0);
 	if(ret != 0) 
 	{
-		printk("Error %d: failed to configure interrupt for pin", ret);
+		printk("Error %d: failed to configure interrupt for pin\n", ret);
 		return false;
 	} 
 	ret = gpio_pin_interrupt_configure_dt(&button3_spec, GPIO_INT_EDGE_TO_ACTIVE);
 	if(ret != 0) 
 	{
-		printk("Error %d: failed to configure interrupt for pin", ret);
+		printk("Error %d: failed to configure interrupt for pin\n", ret);
 		return false;
 	}
 	//int pin setup
@@ -211,7 +211,7 @@ void calibrate(const struct device* dev, uint8_t* buf, calVals* calibVals)
 			aggre = avg;
 			reads = 1;
 		}
-		printk("aggre is %d. avg is %d. ", aggre, avg);
+		printk("aggre is %d. avg is %d. \n", aggre, avg);
 	}
 	if(reading > calibVals->ambH)
 	{
@@ -249,7 +249,7 @@ void pollALS(const struct device* dev, uint8_t* i2c_buffer)
 		printk("looking for bluetooth...\n");
 		k_msleep(1000);
 		}
-	printk("bluetooth %s!\n", buttonFlag ? "on" : "off");
+	printk("bluetooth %s\n", buttonFlag ? "on!" : "off.");
 	}
 
 void sleepFuncCb(struct k_timer *dummy)
@@ -278,7 +278,7 @@ void main(void)
 
 	if(!setupGPIO(gp_cont))
 	{
-		printk("GPIO setup failed.");
+		printk("GPIO setup failed.\n");
 		return;
 	}
 	//create and start minute countdown
