@@ -8,6 +8,7 @@
 #include "vcnl4040.h"
 #include "gpioDev.h"
 #include "callbacks.h"
+#include "remoteService/remote.h"
 // #include <nrfx_gpiote.h>
 
 
@@ -33,13 +34,16 @@ void main(void)
 	
 	if(!sensorSetup(dev, i2c_buffer)) 
 	{
-		printk("Sensor setup failed!\n");
 		return;
 	}
 
 	if(!setupGPIO(gp_cont))
 	{
-		printk("GPIO setup failed.\n");
+		return;
+	}
+
+	if(!bluetoothInit())
+	{
 		return;
 	}
 	//create and start minute countdown
