@@ -28,7 +28,7 @@ extern bool sleepFlag;
 
 void main(void)
 {
-	const struct device *dev = DEVICE_DT_GET(DT_NODELABEL(i2c1));
+	const struct device *dev = DEVICE_DT_GET(DT_NODELABEL(i2c0));
 	const struct device *gp_cont = DEVICE_DT_GET(DT_NODELABEL(gpio0));
 	uint8_t i2c_buffer[3];
 	
@@ -41,11 +41,12 @@ void main(void)
 	{
 		return;
 	}
-
-	if(!bluetoothInit())
+	// bluetooth_callbacks;
+	if(!bluetoothInit(&bluetooth_callbacks))
 	{
 		return;
 	}
+	
 	//create and start minute countdown
 	createTimer();
 	startTimer();
@@ -56,7 +57,7 @@ void main(void)
 		{
 			pollALS(dev, i2c_buffer);
 			k_msleep(SLEEPTIME);
-		}
+		} else { bluetoothDisable();}
 		k_msleep(1); //prevents loop from locking?
 	}
 }
