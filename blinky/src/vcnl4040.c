@@ -81,8 +81,8 @@ void calibrate(const struct device* dev, uint8_t* buf, calVals* calibVals)
 	{
 		aggre = reading;
 		reads = 1; 
-		calibVals->ambH = reading+1;
-		calibVals->ambL = reading-1;
+		calibVals->ambH = reading+20;
+		calibVals->ambL = reading-20;
 		freshCalib = false;
 		printk("updated ambH to %u\n", calibVals->ambH);
 		printk("updated ambL to %u\n", calibVals->ambL);
@@ -103,7 +103,7 @@ void calibrate(const struct device* dev, uint8_t* buf, calVals* calibVals)
 		calibVals->ambH = reading;
 		printk("updated ambH to %u\n", calibVals->ambH);
 		msg.regAddr = VCNL4040_H_THRESH_REG;
-		msg.LByte = buf[0];
+		msg.LByte = buf[0]+15;
 		msg.HByte = buf[1];
 		if(!vcnlWrite(dev, buf, &msg))
 		{return;}
@@ -113,7 +113,7 @@ void calibrate(const struct device* dev, uint8_t* buf, calVals* calibVals)
 		calibVals->ambL = reading;
 		printk("updated ambL to %u\n", calibVals->ambL);
 		msg.regAddr = VCNL4040_L_THRESH_REG;
-		msg.LByte = buf[0];
+		msg.LByte = buf[0]-15;
 		msg.HByte = buf[1];
 		if(!vcnlWrite(dev, buf, &msg))
 		{return;}

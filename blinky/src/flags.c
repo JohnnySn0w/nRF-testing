@@ -6,5 +6,6 @@
 bool INTflag = false;
 bool buttonFlag = false;
 bool sleepFlag = false;
+bool bleConnFlag = false;
 
 #endif
