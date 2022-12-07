@@ -14,6 +14,16 @@
 
 #define SLEEPTIME				2000
 extern bool sleepFlag;
+extern bool bleConnFlag;
+
+struct bt_conn_cb bluetooth_callbacks = {
+    .connected = on_connected,
+    .disconnected = on_disconnected,
+};
+
+struct bt_account_service_cb account_service_callbacks = {
+	.data_received = on_data_received,
+};
 
 // struct intFlags {
 // 	0b10000000: Reserved,
@@ -42,7 +52,7 @@ void main(void)
 		return;
 	}
 	// bluetooth_callbacks;
-	if(!bluetoothInit(&bluetooth_callbacks))
+	if(!bluetoothInit(&bluetooth_callbacks, &account_service_callbacks))
 	{
 		return;
 	}
@@ -57,7 +67,8 @@ void main(void)
 		{
 			pollALS(dev, i2c_buffer);
 			k_msleep(SLEEPTIME);
-		} else { bluetoothDisable();}
-		k_msleep(1); //prevents loop from locking?
+		}
+		// } else {bluetoothDisable();}
+		k_msleep(SLEEPTIME); //prevents loop from locking?
 	}
 }
