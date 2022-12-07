@@ -7,5 +7,6 @@ bool INTflag = false;
 bool buttonFlag = false;
 bool sleepFlag = false;
 bool bleConnFlag = false;
+int operatingStatus = 1;
 
 #endif
